@@ -1,0 +1,246 @@
+# GitHub 标签颜色标准化验证脚本 - 所需物料清单及配置指南
+要让脚本正常运行，需准备 **本地文件类物料**（环境配置、标签标准文档等）和 **链接类物料**（权限令牌、仓库/API 工具等），以下是完整物料及详细配置步骤：
+
+
+## 一、本地文件类物料（共5类，含生成示例）
+本地文件分为「脚本运行依赖文件」和「目标仓库待验证文件」，需严格匹配脚本 `CONFIG` 配置（如仓库名、分支名、文档路径）。
+
+
+### 1. 脚本运行核心依赖：`.env`（环境变量配置文件）
+#### 用途
+存储 GitHub 认证信息（`GITHUB_TOKEN` 和 `GITHUB_ORG`），脚本通过 `python-dotenv` 加载，避免硬编码泄露敏感信息。  
+#### 生成内容（复制到文件，替换 `<>` 内实际值）
+```env
+# .env 文件（与验证脚本在同一目录）
+# 1. GitHub 个人访问令牌（生成方法见「链接类物料1」，需 repo 权限）
+GITHUB_TOKEN=<your_github_personal_access_token>
+# 2. GitHub 组织/用户名（目标仓库「team-project-management」所属主体，如 "dev-team-2025"）
+GITHUB_ORG=<your_github_organization_or_username>
+```
+#### 关键要求
+- 放置位置：必须与验证脚本（如命名为 `verify_label_standard.py`）在同一文件夹；  
+- 安全提醒：**务必添加到 `.gitignore`**（避免提交到代码库），后续会生成 `.gitignore` 物料。
+
+
+### 2. 目标仓库待验证文件：`docs/label-color-standardization.md`（标签标准文档）
+#### 用途
+脚本核心验证对象之一：需包含「标签名-颜色-分类」表格（匹配 `CONFIG["doc_parsing"]["table_header"]`），且至少 22 个标签，确保标签体系标准化。  
+#### 生成内容（复制到文件，需保留表格格式）
+```markdown
+# GitHub 标签颜色标准化文档
+## 1. 文档说明
+本文档定义「team-project-management」仓库的标签体系，包含标签名称、十六进制颜色、分类及使用场景，确保团队标签统一。
+
+## 2. 标签标准列表
+| Label Name | Color Hex | Category | 适用场景说明 |
+|------------|-----------|----------|--------------|
+| bug        | #d73a4a   | Bug      | 功能异常或错误 |
+| bug-critical | #b60205 | Bug      | 严重bug（阻断业务） |
+| bug-major  | #d73a4a   | Bug      | 重要bug（影响核心功能） |
+| bug-minor  | #fbca04   | Bug      | 轻微bug（不影响核心功能） |
+| enhancement | #a2eeef | Enhancement | 功能优化（非全新功能） |
+| feature    | #0e8a16   | Feature  | 全新功能开发 |
+| documentation | #0075ca | Documentation | 文档编写/更新 |
+| task       | #d4c5f9   | Task     | 日常任务（如配置调整） |
+| question   | #d876e3   | Support  | 疑问咨询（非bug/功能） |
+| help-wanted | #008672 | Support  | 需要外部协助 |
+| good-first-issue | #7057ff | Support | 新手友好型任务 |
+| priority-high | #ff4400 | Priority | 高优先级（需紧急处理） |
+| priority-medium | #ffaa00 | Priority | 中优先级（常规处理） |
+| priority-low | #cccccc | Priority | 低优先级（可延后处理） |
+| status-in-progress | #009800 | Status  | 任务处理中 |
+| status-review | #0366d6 | Status  | 等待代码审查 |
+| status-done | #6a737d | Status  | 任务已完成 |
+| status-blocked | #d73a4a | Status  | 任务被阻断（需解决依赖） |
+| component-frontend | #2088ff | Component | 前端模块相关 |
+| component-backend | #00dfb6 | Component | 后端模块相关 |
+| component-db | #ff7700 | Component | 数据库相关 |
+| wontfix    | #ffffff   | Resolution | 确认不修复（如设计如此） |
+
+## 3. 颜色标准规则
+1. Bug类标签：红色系（#d73a4a 及衍生色），严重程度越高颜色越深；
+2. 功能类标签：绿色/蓝色系（#0e8a16、#a2eeef），区分全新功能与优化；
+3. 优先级标签：橙-黄-灰渐变（#ff4400→#cccccc），优先级递减；
+4. 所有标签颜色需符合 GitHub 视觉规范，避免过于鲜艳或相近难以区分。
+```
+#### 关键要求
+- 放置位置：目标仓库 `team-project-management` 的 **`feat/label-color-standard` 分支**下的 `docs` 文件夹（需先创建 `docs` 目录）；  
+- 格式要求：表格头部必须为 `| Label Name | Color Hex | Category |`（与脚本 `CONFIG["doc_parsing"]["table_header"]` 完全一致），标签数量≥22 个。
+
+
+### 3. 辅助安全文件：`.gitignore`（避免敏感文件提交）
+#### 用途
+防止 `.env` 等敏感文件被误提交到 GitHub，保护 `GITHUB_TOKEN` 不泄露。  
+#### 生成内容
+```
+# .gitignore 文件（与脚本、.env 在同一目录）
+# 1. 忽略环境变量文件（核心敏感文件）
+.env
+# 2. 忽略 Python 依赖缓存（避免冗余提交）
+__pycache__/
+venv/
+*.pyc
+*.pyo
+*.pyd
+# 3. 忽略日志文件（若后续添加日志功能）
+*.log
+```
+
+
+### 4. 脚本依赖 Python 包：安装命令
+#### 用途
+脚本依赖 `requests`（调用 GitHub API）和 `python-dotenv`（加载 `.env`），需提前安装。  
+#### 安装命令（终端执行）
+```bash
+# 确保已安装 Python3（推荐 3.8+），执行以下命令安装依赖
+pip install requests python-dotenv
+```
+
+
+### 5. 辅助物料：Issue/PR 示例内容（确保脚本可识别）
+脚本需找到符合关键词的 Issue 和 PR，需按以下示例创建（避免脚本因“找不到目标”失败）：
+
+#### 示例1：符合要求的 Issue（标签标准化文档Issue）
+- **标题**：`Document label color standard & Label organization for team repo`（含脚本要求的关键词）；  
+- **Body**：
+  ```markdown
+  ## Background
+  目前团队仓库标签体系混乱，颜色不统一，导致协作时难以快速识别标签类型，需制定标准化文档。
+
+  ## Required Label List
+  需包含以下类别标签，共22个：
+  - Bug类：bug、bug-critical、bug-major、bug-minor
+  - 功能类：enhancement、feature、documentation
+  - ...（省略其他类别，确保包含所有22个标签）
+
+  ## Color Standard Rules
+  1. Bug类用红色系，优先级越高颜色越深；
+  2. 功能类用绿色/蓝色系；
+  3. 优先级标签用橙-黄-灰渐变。
+
+  ## 预期交付
+  1. 完成 docs/label-color-standardization.md 文档；
+  2. 创建PR关联此Issue，完成文档合并。
+  ```
+- **初始标签**：添加 `documentation` 和 `enhancement`（与脚本 `CONFIG["issue_requirements"]["initial_labels"]` 一致）。
+
+#### 示例2：符合要求的 PR（标签文档提交PR）
+- **标题**：`Add label color standard doc & complete Label standardization`（含脚本要求的关键词）；  
+- **Body**：
+  ```markdown
+  ## Summary
+  完成标签颜色标准化文档，包含22个标签的名称、颜色、分类及使用规则，解决仓库标签混乱问题。
+
+  ## Doc Content
+  1. 文档路径：docs/label-color-standardization.md；
+  2. 包含标签表格（22个标签）、颜色规则章节；
+  3. 标签颜色符合 GitHub 视觉规范。
+
+  ## Issue Reference
+  Fixes #123（替换 #123 为上述Issue的实际编号，与脚本 `CONFIG["pr_requirements"]["issue_reference_pattern"]` 格式一致）
+
+  ## 验证点
+  1. 文档表格头部正确：| Label Name | Color Hex | Category |；
+  2. 标签数量≥22个；
+  3. 颜色规则清晰，无冲突。
+  ```
+- **PR标签**：添加至少5个标签（如 `documentation`、`enhancement`、`priority-medium`、`status-done`、`component-docs`，满足脚本 `CONFIG["pr_requirements"]["min_labels_count"]`）。
+
+
+## 二、链接类物料（共4类，含操作步骤）
+链接类物料用于获取权限、创建仓库、上传文档，确保脚本能访问目标资源（如标签文档、Issue、PR）。
+
+
+### 1. GitHub 个人访问令牌（PAT）生成链接（核心权限）
+#### 用途
+生成 `.env` 中必需的 `GITHUB_TOKEN`，需具备「访问目标仓库文件、Issue、PR」的权限。  
+#### 链接地址
+[GitHub PAT 创建页](https://github.com/settings/tokens/new)  
+#### 操作步骤（3步完成）
+1. **填写基本信息**：  
+   - 「Note」：输入令牌用途（如 `Label-Color-Standard-Verify-Token`）；  
+   - 「Expiration」：选择「No expiration」（避免频繁重新生成，生产环境可设短期）。  
+2. **勾选权限**（仅勾选必需权限，最小权限原则）：  
+   - 展开「repo」→ 勾选 **所有子权限**（`repo:status`、`repo_deployment` 等，确保能访问仓库文件、Issue、PR）；  
+   - 无需勾选其他权限（如 `workflow`、`user` 等）。  
+3. **生成并保存**：  
+   - 点击「Generate token」；  
+   - 复制生成的令牌（**仅显示一次**），立即粘贴到 `.env` 的 `GITHUB_TOKEN` 字段。
+
+
+### 2. 目标仓库创建链接（若仓库不存在）
+#### 用途
+若 `team-project-management` 仓库尚未创建，需先在 GitHub 上创建该仓库，作为标签文档、Issue、PR 的载体。  
+#### 链接地址
+[GitHub 仓库创建页](https://github.com/new)  
+#### 操作步骤
+1. **仓库基本配置**：  
+   - 「Repository name」：输入 `team-project-management`（与脚本 `CONFIG["target_repo"]` 完全一致）；  
+   - 「Description」：可选，输入「团队项目管理仓库（含标签颜色标准化验证）」；  
+   - 「Visibility」：选择「Public」或「Private」（根据团队需求）。  
+2. **初始化配置**：  
+   - 勾选「Add a README file」（便于团队了解仓库用途）；  
+   - 点击「Create repository」完成创建。
+
+
+### 3. 标签文档上传到功能分支（关键操作）
+#### 用途
+将 `docs/label-color-standardization.md` 上传到目标仓库的 `feat/label-color-standard` 分支（脚本 `CONFIG["feature_branch"]["name"]`），确保脚本能读取文档。  
+#### 操作步骤（两种方式可选）
+##### 方式1：GitHub 网页端上传（适合新手）
+1. 打开 `team-project-management` 仓库页面 → 点击「Branch: main」→ 输入 `feat/label-color-standard` → 点击「Create branch: feat/label-color-standard from 'main'」（创建功能分支）；  
+2. 点击「Add file」→ 选择「Create new file」；  
+3. 「File name」输入 `docs/label-color-standardization.md`（输入 `docs/` 时自动创建 `docs` 目录）；  
+4. 将「本地文件类物料2」中的文档内容复制到编辑框；  
+5. 底部填写「Commit new file」信息（如 `feat: add label color standardization doc`），点击「Commit changes」。
+
+##### 方式2：本地 Git 命令上传（适合熟悉 Git 的用户）
+```bash
+# 1. 克隆目标仓库到本地（替换 <github_org> 为实际组织/用户名）
+git clone https://github.com/<github_org>/team-project-management.git
+cd team-project-management
+
+# 2. 创建并切换到功能分支
+git checkout -b feat/label-color-standard
+
+# 3. 创建 docs 目录（若不存在）
+mkdir -p docs
+
+# 4. 将本地编写好的标签文档复制到 docs 目录
+cp /path/to/your/label-color-standardization.md docs/
+
+# 5. 提交并推送至功能分支
+git add docs/label-color-standardization.md
+git commit -m "feat: add label color standardization doc"
+git push origin feat/label-color-standard
+```
+
+
+### 4. 参考文档链接（解决配置疑问）
+| 文档用途                | 官方链接                                                                 | 作用说明                                  |
+|-------------------------|--------------------------------------------------------------------------|-----------------------------------------|
+| GitHub API 标签接口     | [Labels API 文档](https://docs.github.com/en/rest/issues/labels)          | 理解脚本如何间接校验标签体系（通过Issue/PR标签） |
+| GitHub API 评论接口     | [Issue Comments API 文档](https://docs.github.com/en/rest/issues/comments) | 排查脚本获取Issue评论失败问题            |
+| Markdown 表格格式参考   | [GitHub Markdown 表格指南](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-tables) | 确保标签文档表格格式正确                  |
+
+
+## 三、最终检查清单（确保无遗漏）
+1. [ ] `.env` 文件已创建，`GITHUB_TOKEN` 和 `GITHUB_ORG` 填写正确；  
+2. [ ] `.env` 已添加到 `.gitignore`；  
+3. [ ] 目标仓库 `team-project-management` 已创建；  
+4. [ ] 功能分支 `feat/label-color-standard` 已创建，且 `docs/label-color-standardization.md` 已上传（包含≥22个标签，表格头部正确）；  
+5. [ ] 已创建符合要求的 Issue（含关键词、必需章节、初始标签）；  
+6. [ ] 已创建符合要求的 PR（关联Issue、含关键词、必需章节、≥5个标签）；  
+7. [ ] 已执行 `pip install requests python-dotenv` 安装依赖；  
+8. [ ] 验证脚本与 `.env` 在同一目录。
+
+
+## 四、脚本运行与结果查看
+1. **运行命令**（终端进入脚本所在目录）：  
+   ```bash
+   python verify_label_standard.py
+   ```
+2. **成功标志**：终端输出 `✅ 所有标签颜色标准化验证步骤通过！`，包含目标仓库、Issue/PR 信息；  
+3. **失败排查**：若某步骤失败（如“文档未找到”“Issue缺失章节”），根据错误提示修正（如检查文档路径、补充Issue章节）。
+
+完成以上所有物料准备后，脚本即可自动校验标签颜色标准化流程的合规性，确保团队标签体系统一。
